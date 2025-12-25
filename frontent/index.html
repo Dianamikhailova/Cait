@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Угадай Число Game - Ethereum Игра</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Шапка -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-dice"></i>
+                <h1>GUESS<span>NUMBER</span></h1>
+            </div>
+            <div class="wallet-section">
+                <button id="connectBtn" class="btn-wallet">
+                    <i class="fas fa-wallet"></i>
+                    <span>Подключить MetaMask</span>
+                </button>
+                <div id="walletInfo" class="wallet-info">
+                    <div class="wallet-address" id="walletAddress"></div>
+                    <div class="wallet-balance" id="walletBalance"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <!-- Левая колонка - Игра -->
+            <div class="game-section">
+                <div class="card game-card">
+                    <h2><i class="fas fa-gamepad"></i> Играть</h2>
+                    
+                    <!-- Банк игры -->
+                    <div class="game-bank">
+                        <div class="bank-header">
+                            <h3><i class="fas fa-piggy-bank"></i> Банк игры</h3>
+                            <span class="bank-amount" id="contractBalance">0 ETH</span>
+                        </div>
+                        <div class="bank-stats">
+                            <div class="stat">
+                                <span class="stat-label">Минимальная ставка:</span>
+                                <span class="stat-value" id="minBet">0.0001 ETH</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Шанс на победу:</span>
+                                <span class="stat-value">10%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Форма ставки -->
+                    <div class="bet-form">
+                        <h3><i class="fas fa-coins"></i> Сделать ставку</h3>
+                        <div class="form-group">
+                            <label for="betAmount">
+                                <i class="fas fa-money-bill-wave"></i> Сумма ставки (ETH)
+                            </label>
+                            <input 
+                                type="number" 
+                                id="betAmount" 
+                                step="0.0001" 
+                                min="0.0001" 
+                                value="0.0001"
+                                placeholder="Введите сумму"
+                                class="input"
+                            >
+                            <div class="amount-hint">Минимум: 0.0001 ETH</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="guessNumber">
+                                <i class="fas fa-bullseye"></i> Ваше число (1-10)
+                            </label>
+                            <div class="number-selector">
+                                <div class="number-grid" id="numberGrid">
+                                    <!-- Числа 1-10 будут добавлены через JS -->
+                                </div>
+                            </div>
+                            <input type="hidden" id="selectedNumber" value="1">
+                        </div>
+                        
+                        <button id="playBtn" class="btn-play">
+                            <i class="fas fa-play-circle"></i> Играть за <span id="playAmount">0.0001</span> ETH
+                        </button>
+                        
+                        <div class="game-info">
+                            <p><i class="fas fa-info-circle"></i> Угадайте число от 1 до 10</p>
+                            <p><i class="fas fa-trophy"></i> При победе: ставка ×2</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- История игр -->
+                <div class="card history-card">
+                    <h2><i class="fas fa-history"></i> История игр</h2>
+                    <div id="gameHistory" class="game-history">
+                        <div class="empty-history">
+                            <i class="fas fa-clock"></i>
+                            <p>Здесь будет история ваших игр</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Правая колонка - Статистика и управление -->
+            <div class="info-section">
+                <!-- Статистика игрока -->
+                <div class="card stats-card">
+                    <h2><i class="fas fa-chart-line"></i> Ваша статистика</h2>
+                    <div id="playerStats" class="player-stats">
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-gamepad"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Всего игр</div>
+                                <div class="stat-value" id="totalGames">0</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Побед</div>
+                                <div class="stat-value" id="totalWins">0</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Процент побед</div>
+                                <div class="stat-value" id="winRate">0%</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-coins"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Всего поставлено</div>
+                                <div class="stat-value" id="totalBet">0 ETH</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Управление (только для владельца) -->
+                <div class="card admin-card" id="adminPanel" style="display: none;">
+                    <h2><i class="fas fa-user-shield"></i> Управление игрой</h2>
+                    <div class="admin-controls">
+                        <div class="form-group">
+                            <label for="depositAmount">
+                                <i class="fas fa-plus-circle"></i> Пополнить банк игры
+                            </label>
+                            <input 
+                                type="number" 
+                                id="depositAmount" 
+                                step="0.001" 
+                                min="0.001" 
+                                placeholder="ETH"
+                                class="input"
+                            >
+                            <button id="depositBtn" class="btn-admin">
+                                <i class="fas fa-arrow-up"></i> Пополнить
+                            </button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="withdrawAmount">
+                                <i class="fas fa-minus-circle"></i> Вывести из банка
+                            </label>
+                            <input 
+                                type="number" 
+                                id="withdrawAmount" 
+                                step="0.001" 
+                                min="0.001" 
+                                placeholder="ETH"
+                                class="input"
+                            >
+                            <button id="withdrawBtn" class="btn-admin">
+                                <i class="fas fa-arrow-down"></i> Вывести
+                            </button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="newMinBet">
+                                <i class="fas fa-sliders-h"></i> Минимальная ставка
+                            </label>
+                            <div class="minbet-control">
+                                <input 
+                                    type="number" 
+                                    id="newMinBet" 
+                                    step="0.0001" 
+                                    min="0.0001" 
+                                    value="0.0001"
+                                    placeholder="ETH"
+                                    class="input"
+                                >
+                                <button id="updateMinBetBtn" class="btn-admin">
+                                    <i class="fas fa-save"></i> Обновить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Правила игры -->
+                <div class="card rules-card">
+                    <h2><i class="fas fa-book"></i> Правила игры</h2>
+                    <div class="rules-list">
+                        <div class="rule">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Сделайте ставку (минимум 0.0001 ETH)</span>
+                        </div>
+                        <div class="rule">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Выберите число от 1 до 10</span>
+                        </div>
+                        <div class="rule">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Система загадывает случайное число</span>
+                        </div>
+                        <div class="rule">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Если угадали - получаете удвоенную ставку!</span>
+                        </div>
+                        <div class="rule">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Шанс на победу: 10% (1 из 10)</span>
+                        </div>
+                        <div class="rule">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Все транзакции защищены смарт-контрактом</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Уведомления -->
+        <div id="notification" class="notification"></div>
+        
+        <!-- Модальное окно результата -->
+        <div id="resultModal" class="modal">
+            <div class="modal-content result-modal">
+                <div class="modal-header">
+                    <h2 id="resultTitle"></h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="result-icon" id="resultIcon"></div>
+                    <div class="result-message" id="resultMessage"></div>
+                    <div class="result-details">
+                        <div class="detail">
+                            <span class="detail-label">Ваше число:</span>
+                            <span class="detail-value" id="resultPlayerNumber"></span>
+                        </div>
+                        <div class="detail">
+                            <span class="detail-label">Загаданное число:</span>
+                            <span class="detail-value" id="resultSecretNumber"></span>
+                        </div>
+                        <div class="detail">
+                            <span class="detail-label">Ставка:</span>
+                            <span class="detail-value" id="resultBetAmount"></span>
+                        </div>
+                        <div class="detail" id="resultPrizeContainer">
+                            <span class="detail-label">Выигрыш:</span>
+                            <span class="detail-value" id="resultPrize"></span>
+                        </div>
+                    </div>
+                    <button id="closeResultBtn" class="btn-primary">
+                        <i class="fas fa-redo"></i> Играть снова
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Подключаем библиотеки -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.0/ethers.umd.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
