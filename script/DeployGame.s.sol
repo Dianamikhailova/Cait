@@ -1,15 +1,15 @@
-// script/DeployGame.s.sol
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.30;
 
-import {Script} from "forge-std/Script.sol";
-import {GuessNumberGame} from "../src/GuessNumberGame.sol";
+import {Script, console} from "forge-std/Script.sol";
+import {NumberGuessingGame} from "../src/NumberGuessingGame.sol";
 
 contract DeployGame is Script {
     function run() external {
         vm.startBroadcast();
-        new GuessNumberGame();
+        NumberGuessingGame game = new NumberGuessingGame();
         vm.stopBroadcast();
+        console.log("Game deployed at:", address(game));
     }
 }
 

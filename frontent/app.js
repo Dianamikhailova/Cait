@@ -1,753 +1,764 @@
-// Конфигурация
-const CONTRACT_ADDRESS = "0x4AE9d63860d63cf02Ac65E1C4756D008eA6B6817"; // ВСТАВЬТЕ АДРЕС ВАШЕГО КОНТРАКТА
-
-// ABI контракта игры
-const CONTRACT_ABI = [
-    // Основные функции
-    {
-        "inputs": [{"internalType": "uint8", "name": "_guessedNumber", "type": "uint8"}],
-        "name": "placeBetAndPlay",
-        "outputs": [],
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "depositToBank",
-        "outputs": [],
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}],
-        "name": "withdrawFromBank",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    
-    // View функции (чтение данных)
-    {
-        "inputs": [],
-        "name": "owner",
-        "outputs": [{"internalType": "address", "name": "", "type": "address"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "minBet",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "contractBalance",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "gameCount",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "getContractBalance",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [{"internalType": "address", "name": "player", "type": "address"}],
-        "name": "getPlayerStats",
-        "outputs": [
-            {"internalType": "uint256", "name": "totalGames", "type": "uint256"},
-            {"internalType": "uint256", "name": "totalWins", "type": "uint256"},
-            {"internalType": "uint256", "name": "totalBet", "type": "uint256"}
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [{"internalType": "address", "name": "player", "type": "address"}],
-        "name": "getPlayerGames",
-        "outputs": [{"internalType": "uint256[]", "name": "", "type": "uint256[]"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [{"internalType": "uint256", "name": "gameId", "type": "uint256"}],
-        "name": "getGameDetails",
-        "outputs": [
-            {"internalType": "address", "name": "player", "type": "address"},
-            {"internalType": "uint256", "name": "betAmount", "type": "uint256"},
-            {"internalType": "uint8", "name": "guessedNumber", "type": "uint8"},
-            {"internalType": "uint8", "name": "secretNumber", "type": "uint8"},
-            {"internalType": "bool", "name": "won", "type": "bool"}
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [{"internalType": "uint256", "name": "_minBet", "type": "uint256"}],
-        "name": "setMinBet",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "getWinChance",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "pure",
-        "type": "function"
-    },
-    
-    // События
-    {
-        "anonymous": false,
-        "inputs": [
-            {"indexed": false, "internalType": "uint256", "name": "gameId", "type": "uint256"},
-            {"indexed": false, "internalType": "address", "name": "player", "type": "address"},
-            {"indexed": false, "internalType": "uint256", "name": "betAmount", "type": "uint256"}
-        ],
-        "name": "GameCreated",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {"indexed": false, "internalType": "uint256", "name": "gameId", "type": "uint256"},
-            {"indexed": false, "internalType": "address", "name": "player", "type": "address"},
-            {"indexed": false, "internalType": "bool", "name": "won", "type": "bool"},
-            {"indexed": false, "internalType": "uint256", "name": "prize", "type": "uint256"}
-        ],
-        "name": "GamePlayed",
-        "type": "event"
-    }
-];
-
-// Глобальные переменные
-let provider = null;
-let signer = null;
-let contract = null;
-let currentAccount = null;
-let isOwner = false;
-
-// DOM элементы
-const connectBtn = document.getElementById('connectBtn');
-const walletInfo = document.getElementById('walletInfo');
-const walletAddress = document.getElementById('walletAddress');
-const walletBalance = document.getElementById('walletBalance');
-const contractBalance = document.getElementById('contractBalance');
-const minBetElement = document.getElementById('minBet');
-const betAmountInput = document.getElementById('betAmount');
-const numberGrid = document.getElementById('numberGrid');
-const selectedNumberInput = document.getElementById('selectedNumber');
-const playBtn = document.getElementById('playBtn');
-const playAmount = document.getElementById('playAmount');
-const gameHistory = document.getElementById('gameHistory');
-const totalGames = document.getElementById('totalGames');
-const totalWins = document.getElementById('totalWins');
-const winRate = document.getElementById('winRate');
-const totalBet = document.getElementById('totalBet');
-const adminPanel = document.getElementById('adminPanel');
-const depositAmount = document.getElementById('depositAmount');
-const depositBtn = document.getElementById('depositBtn');
-const withdrawAmount = document.getElementById('withdrawAmount');
-const withdrawBtn = document.getElementById('withdrawBtn');
-const newMinBet = document.getElementById('newMinBet');
-const updateMinBetBtn = document.getElementById('updateMinBetBtn');
-const notification = document.getElementById('notification');
-const resultModal = document.getElementById('resultModal');
-const resultTitle = document.getElementById('resultTitle');
-const resultIcon = document.getElementById('resultIcon');
-const resultMessage = document.getElementById('resultMessage');
-const resultPlayerNumber = document.getElementById('resultPlayerNumber');
-const resultSecretNumber = document.getElementById('resultSecretNumber');
-const resultBetAmount = document.getElementById('resultBetAmount');
-const resultPrize = document.getElementById('resultPrize');
-const resultPrizeContainer = document.getElementById('resultPrizeContainer');
-const closeResultBtn = document.getElementById('closeResultBtn');
-
-// Инициализация при загрузке страницы
-window.addEventListener('DOMContentLoaded', async () => {
-    console.log('🎮 Игра "Угадай число" загружается...');
-    
-    // Проверяем наличие MetaMask
-    if (!window.ethereum) {
-        showNotification('Установите MetaMask для игры!', 'error');
-        connectBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Установите MetaMask';
-        connectBtn.disabled = true;
-        return;
-    }
-
-    // Создаем кнопки чисел 1-10
-    createNumberButtons();
-    
-    // Настраиваем обновление суммы ставки
-    betAmountInput.addEventListener('input', updatePlayAmount);
-    
-    // Проверяем подключение кошелька
-    try {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        console.log('Найдены аккаунты:', accounts);
+class NewYearGame {
+    constructor() {
+        this.web3 = null;
+        this.contract = null;
+        this.account = null;
+        this.contractAddress = '0x12524ca20685305c61E1A496277B17fB63eF6C27';
+        this.contractABI = [
+            {
+                "inputs": [],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "inputs": [],
+                "name": "BetTooHigh",
+                "type": "error"
+            },
+            {
+                "inputs": [],
+                "name": "BetTooLow",
+                "type": "error"
+            },
+            {
+                "inputs": [],
+                "name": "InsufficientFunds",
+                "type": "error"
+            },
+            {
+                "inputs": [],
+                "name": "InvalidAmount",
+                "type": "error"
+            },
+            {
+                "inputs": [],
+                "name": "InvalidGuess",
+                "type": "error"
+            },
+            {
+                "inputs": [],
+                "name": "OnlyOwner",
+                "type": "error"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "uint256",
+                        "name": "gameId",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "player",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint8",
+                        "name": "secretNumber",
+                        "type": "uint8"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "bool",
+                        "name": "isWon",
+                        "type": "bool"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "payout",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "GameFinished",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "uint256",
+                        "name": "gameId",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "player",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "betAmount",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint8",
+                        "name": "playerGuess",
+                        "type": "uint8"
+                    }
+                ],
+                "name": "GameStarted",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "recipient",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "Withdrawal",
+                "type": "event"
+            },
+            {
+                "stateMutability": "payable",
+                "type": "fallback"
+            },
+            {
+                "inputs": [],
+                "name": "MIN_BET",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "contractBalance",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "fundContract",
+                "outputs": [],
+                "stateMutability": "payable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "gameCounter",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "games",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "player",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "betAmount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "playerGuess",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "secretNumber",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "isFinished",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "isWon",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "timestamp",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getContractBalance",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_gameId",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "getGameDetails",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "player",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "betAmount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "playerGuess",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "secretNumber",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "isFinished",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "isWon",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "timestamp",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getMinBet",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_player",
+                        "type": "address"
+                    }
+                ],
+                "name": "getPlayerGames",
+                "outputs": [
+                    {
+                        "internalType": "uint256[]",
+                        "name": "",
+                        "type": "uint256[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "owner",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "playerGames",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint8",
+                        "name": "_guess",
+                        "type": "uint8"
+                    }
+                ],
+                "name": "play",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "payable",
+                "type": "function"
+            },
+            {
+                "stateMutability": "payable",
+                "type": "receive"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_amount",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "withdrawFunds",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
         
-        if (accounts.length > 0) {
-            await connectWallet();
+        this.init();
+    }
+
+    async init() {
+        await this.loadWeb3();
+        await this.loadContract();
+        this.setupEventListeners();
+        this.updatePotentialWin();
+    }
+
+    async loadWeb3() {
+        if (window.ethereum) {
+            this.web3 = new Web3(window.ethereum);
+            try {
+                const accounts = await window.ethereum.request({ 
+                    method: 'eth_requestAccounts' 
+                });
+                if (accounts.length > 0) {
+                    await this.updateWalletInfo();
+                }
+            } catch (error) {
+                console.log("User denied account access");
+            }
+        } else if (window.web3) {
+            this.web3 = new Web3(window.web3.currentProvider);
+        } else {
+            this.showMetaMaskAlert();
+            return;
         }
-    } catch (error) {
-        console.error('Ошибка при проверке аккаунтов:', error);
-    }
-
-    // Слушаем изменения аккаунта
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
-});
-
-// Создание кнопок чисел
-function createNumberButtons() {
-    numberGrid.innerHTML = '';
-    for (let i = 1; i <= 10; i++) {
-        const button = document.createElement('button');
-        button.className = 'number-btn';
-        if (i === 1) button.classList.add('selected');
-        button.textContent = i;
-        button.dataset.number = i;
         
-        button.addEventListener('click', () => {
-            // Убираем выделение у всех кнопок
-            document.querySelectorAll('.number-btn').forEach(btn => {
-                btn.classList.remove('selected');
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', (accounts) => {
+                this.account = accounts[0];
+                this.updateWalletInfo();
+                this.loadGameHistory();
             });
             
-            // Выделяем выбранную кнопку
-            button.classList.add('selected');
-            selectedNumberInput.value = i;
-        });
-        
-        numberGrid.appendChild(button);
-    }
-}
-
-// Обновление суммы на кнопке "Играть"
-function updatePlayAmount() {
-    const amount = parseFloat(betAmountInput.value) || 0.0001;
-    playAmount.textContent = amount.toFixed(4);
-}
-
-// Подключение кошелька
-connectBtn.onclick = async () => {
-    if (!window.ethereum) {
-        showNotification('Установите MetaMask!', 'error');
-        return;
-    }
-    await connectWallet();
-};
-
-async function connectWallet() {
-    try {
-        console.log('🔗 Подключение кошелька...');
-        
-        provider = new ethers.BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        signer = await provider.getSigner();
-        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-        
-        currentAccount = await signer.getAddress();
-        console.log('✅ Аккаунт подключен:', currentAccount);
-        
-        // Обновляем UI кошелька
-        connectBtn.innerHTML = '<i class="fas fa-check-circle"></i> Подключено';
-        connectBtn.style.background = 'linear-gradient(45deg, #2ecc71, #27ae60)';
-        walletAddress.textContent = `${currentAccount.slice(0, 6)}...${currentAccount.slice(-4)}`;
-        walletInfo.classList.add('connected');
-        
-        // Получаем баланс кошелька
-        await updateWalletBalance();
-        
-        // Проверяем, является ли пользователь владельцем
-        await checkIfOwner();
-        
-        // Загружаем данные контракта
-        await loadContractData();
-        
-        // Загружаем статистику игрока
-        await loadPlayerStats();
-        
-        // Загружаем историю игр
-        await loadGameHistory();
-        
-        showNotification('Кошелёк успешно подключен!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Ошибка подключения:', error);
-        showNotification(`Ошибка подключения: ${error.message}`, 'error');
-        connectBtn.innerHTML = '<i class="fas fa-wallet"></i> Подключить MetaMask';
-        connectBtn.style.background = 'linear-gradient(45deg, #00d4ff, #0088ff)';
-    }
-}
-
-// Обновление баланса кошелька
-async function updateWalletBalance() {
-    try {
-        const balance = await provider.getBalance(currentAccount);
-        const ethBalance = ethers.formatEther(balance);
-        walletBalance.textContent = `${parseFloat(ethBalance).toFixed(4)} ETH`;
-    } catch (error) {
-        console.error('Ошибка получения баланса:', error);
-        walletBalance.textContent = 'Ошибка';
-    }
-}
-
-// Проверка, является ли пользователь владельцем
-async function checkIfOwner() {
-    try {
-        const ownerAddress = await contract.owner();
-        isOwner = ownerAddress.toLowerCase() === currentAccount.toLowerCase();
-        
-        if (isOwner) {
-            console.log('👑 Пользователь является владельцем контракта');
-            adminPanel.style.display = 'block';
-            
-            // Устанавливаем текущую минимальную ставку
-            const currentMinBet = await contract.minBet();
-            newMinBet.value = ethers.formatEther(currentMinBet);
+            window.ethereum.on('chainChanged', () => {
+                window.location.reload();
+            });
         }
-    } catch (error) {
-        console.error('Ошибка проверки владельца:', error);
-        isOwner = false;
     }
-}
 
-// Загрузка данных контракта
-async function loadContractData() {
-    try {
-        // Получаем баланс контракта
-        const balance = await contract.getContractBalance();
-        const ethBalance = ethers.formatEther(balance);
-        contractBalance.textContent = `${parseFloat(ethBalance).toFixed(4)} ETH`;
-        
-        // Получаем минимальную ставку
-        const minBetValue = await contract.minBet();
-        const minBetEth = ethers.formatEther(minBetValue);
-        minBetElement.textContent = `${parseFloat(minBetEth).toFixed(4)} ETH`;
-        
-        // Устанавливаем минимальное значение в поле ввода
-        betAmountInput.min = parseFloat(minBetEth);
-        betAmountInput.value = parseFloat(minBetEth).toFixed(4);
-        updatePlayAmount();
-        
-    } catch (error) {
-        console.error('Ошибка загрузки данных контракта:', error);
-        showNotification('Ошибка загрузки данных игры', 'error');
+    showMetaMaskAlert() {
+        alert('Пожалуйста, установите MetaMask для использования этого приложения!');
     }
-}
 
-// Загрузка статистики игрока
-async function loadPlayerStats() {
-    try {
-        const stats = await contract.getPlayerStats(currentAccount);
-        
-        totalGames.textContent = Number(stats[0]);
-        totalWins.textContent = Number(stats[1]);
-        
-        const totalGamesNum = Number(stats[0]);
-        const totalWinsNum = Number(stats[1]);
-        const winRateValue = totalGamesNum > 0 ? (totalWinsNum / totalGamesNum * 100).toFixed(1) : 0;
-        winRate.textContent = `${winRateValue}%`;
-        
-        const totalBetValue = ethers.formatEther(stats[2]);
-        totalBet.textContent = `${parseFloat(totalBetValue).toFixed(4)} ETH`;
-        
-    } catch (error) {
-        console.error('Ошибка загрузки статистики:', error);
+    async loadContract() {
+        try {
+            if (!this.web3) return;
+            
+            this.contract = new this.web3.eth.Contract(
+                this.contractABI, 
+                this.contractAddress
+            );
+            
+            await this.updateContractInfo();
+        } catch (error) {
+            console.error('Error loading contract:', error);
+        }
     }
-}
 
-// Загрузка истории игр
-async function loadGameHistory() {
-    try {
-        const gameIds = await contract.getPlayerGames(currentAccount);
-        gameHistory.innerHTML = '';
-        
-        if (gameIds.length === 0) {
-            gameHistory.innerHTML = `
-                <div class="empty-history">
-                    <i class="fas fa-clock"></i>
-                    <p>У вас еще нет сыгранных игр</p>
-                    <p style="font-size: 0.9rem; margin-top: 10px; color: #888;">
-                        Сделайте свою первую ставку!
-                    </p>
-                </div>
-            `;
+    async updateWalletInfo() {
+        if (!this.web3 || !this.contract) return;
+
+        try {
+            const accounts = await this.web3.eth.getAccounts();
+            if (accounts.length === 0) {
+                document.getElementById('connectWallet').style.display = 'flex';
+                document.getElementById('walletInfo').style.display = 'none';
+                document.getElementById('playButton').disabled = true;
+                return;
+            }
+
+            this.account = accounts[0];
+            document.getElementById('connectWallet').style.display = 'none';
+            document.getElementById('walletInfo').style.display = 'flex';
+            
+            const address = this.account.substring(0, 6) + '...' + this.account.substring(38);
+            document.getElementById('walletAddress').textContent = address;
+            
+            const balance = await this.web3.eth.getBalance(this.account);
+            const ethBalance = this.web3.utils.fromWei(balance, 'ether');
+            document.getElementById('walletBalance').textContent = 
+                parseFloat(ethBalance).toFixed(4) + ' ETH';
+            
+            document.getElementById('playButton').disabled = false;
+            
+            await this.updateContractInfo();
+            await this.loadGameHistory();
+            
+        } catch (error) {
+            console.error('Error updating wallet info:', error);
+        }
+    }
+
+    async updateContractInfo() {
+        try {
+            if (!this.contract) return;
+            
+            const contractBalance = await this.contract.methods.getContractBalance().call();
+            const minBet = await this.contract.methods.getMinBet().call();
+            
+            document.getElementById('contractBalance').textContent = 
+                parseFloat(this.web3.utils.fromWei(contractBalance, 'ether')).toFixed(4) + ' ETH';
+            document.getElementById('minBet').textContent = 
+                this.web3.utils.fromWei(minBet, 'ether') + ' ETH';
+            
+            this.updatePotentialWin();
+        } catch (error) {
+            console.error('Error updating contract info:', error);
+        }
+    }
+
+    async playGame(number) {
+        if (!this.account || !this.contract) {
+            alert('Пожалуйста, подключите кошелек сначала');
             return;
         }
-        
-        // Сортируем по ID (новые сверху)
-        const sortedGameIds = [...gameIds].sort((a, b) => Number(b) - Number(a));
-        
-        // Показываем только последние 10 игр
-        const recentGames = sortedGameIds.slice(0, 10);
-        
-        for (const gameId of recentGames) {
-            try {
-                const game = await contract.getGameDetails(gameId);
+
+        const betAmount = document.getElementById('betAmount').value;
+        const betWei = this.web3.utils.toWei(betAmount, 'ether');
+
+        try {
+            // Получаем минимальную ставку
+            const minBet = await this.contract.methods.getMinBet().call();
+            const minBetEth = this.web3.utils.fromWei(minBet, 'ether');
+
+            if (parseFloat(betAmount) < parseFloat(minBetEth)) {
+                alert(`Минимальная ставка: ${minBetEth} ETH`);
+                return;
+            }
+
+            if (parseFloat(betAmount) > 1) {
+                alert('Максимальная ставка: 1 ETH');
+                return;
+            }
+
+            // Проверяем баланс пользователя
+            const userBalance = await this.web3.eth.getBalance(this.account);
+            if (parseFloat(this.web3.utils.fromWei(userBalance, 'ether')) < parseFloat(betAmount)) {
+                alert('Недостаточно средств на кошельке');
+                return;
+            }
+
+            // Блокируем кнопку
+            const playButton = document.getElementById('playButton');
+            playButton.disabled = true;
+            playButton.innerHTML = '<span class="btn-icon">⏳</span> Обработка...';
+
+            // Отправляем транзакцию
+            const result = await this.contract.methods.play(number).send({
+                from: this.account,
+                value: betWei,
+                gas: 300000
+            });
+
+            // Обрабатываем результат
+            if (result.events.GameFinished) {
+                const event = result.events.GameFinished.returnValues;
+                const isWon = event.isWon;
+                const secretNumber = event.secretNumber;
                 
-                const historyItem = document.createElement('div');
-                historyItem.className = `history-item ${game.won ? 'win' : 'lose'}`;
+                this.showGameResult(
+                    number,
+                    secretNumber,
+                    isWon,
+                    this.web3.utils.fromWei(event.payout, 'ether')
+                );
                 
-                const ethAmount = ethers.formatEther(game.betAmount);
+                // Показываем эффект "С Новым Годом" если выиграл
+                if (isWon) {
+                    this.showNewYearEffect();
+                }
+            }
+
+            // Обновляем информацию
+            await this.updateContractInfo();
+            await this.updateWalletInfo();
+            await this.loadGameHistory();
+
+        } catch (error) {
+            console.error('Error playing game:', error);
+            let errorMessage = 'Произошла ошибка';
+            
+            if (error.code === 4001) {
+                errorMessage = 'Транзакция отменена пользователем';
+            } else if (error.message.includes('BetTooLow')) {
+                errorMessage = 'Ставка слишком низкая';
+            } else if (error.message.includes('BetTooHigh')) {
+                errorMessage = 'Ставка слишком высокая';
+            } else if (error.message.includes('InsufficientFunds')) {
+                errorMessage = 'Недостаточно средств в контракте';
+            }
+            
+            alert(errorMessage);
+        } finally {
+            // Разблокируем кнопку
+            const playButton = document.getElementById('playButton');
+            playButton.disabled = false;
+            playButton.innerHTML = '<span class="btn-icon">🎮</span> Играть!';
+        }
+    }
+
+    showGameResult(playerGuess, secretNumber, isWon, payout) {
+        document.getElementById('playerGuessResult').textContent = playerGuess;
+        document.getElementById('secretNumberResult').textContent = secretNumber;
+        
+        if (isWon) {
+            document.getElementById('gameStatus').textContent = '🎉 Победа!';
+            document.getElementById('gameStatus').style.color = '#4CAF50';
+        } else {
+            document.getElementById('gameStatus').textContent = '😢 Поражение';
+            document.getElementById('gameStatus').style.color = '#F44336';
+        }
+        
+        document.getElementById('payoutAmount').textContent = payout + ' ETH';
+        document.getElementById('gameResult').style.display = 'block';
+    }
+
+    showNewYearEffect() {
+        const effect = document.getElementById('newYearEffect');
+        effect.style.display = 'flex';
+        
+        // Автоматически скрываем через 10 секунд
+        setTimeout(() => {
+            this.hideNewYearEffect();
+        }, 10000);
+    }
+
+    hideNewYearEffect() {
+        document.getElementById('newYearEffect').style.display = 'none';
+    }
+
+    updatePotentialWin() {
+        const betAmount = document.getElementById('betAmount').value;
+        const potentialWin = parseFloat(betAmount) * 2;
+        document.getElementById('potentialWin').textContent = 
+            potentialWin.toFixed(4) + ' ETH';
+    }
+
+    async loadGameHistory() {
+        if (!this.account || !this.contract) return;
+
+        try {
+            const gameIds = await this.contract.methods.getPlayerGames(this.account).call();
+            const historyContainer = document.getElementById('gamesHistory');
+            historyContainer.innerHTML = '';
+
+            // Покажем последние 5 игр
+            const recentGames = gameIds.slice(-5).reverse();
+
+            if (recentGames.length === 0) {
+                historyContainer.innerHTML = '<p class="empty-history">Игр пока нет</p>';
+                return;
+            }
+
+            for (const gameId of recentGames) {
+                const game = await this.contract.methods.getGameDetails(gameId).call();
                 
-                historyItem.innerHTML = `
-                    <div class="history-number">Игра #${Number(gameId) + 1}</div>
-                    <div class="history-result ${game.won ? 'win' : 'lose'}">
-                        <i class="fas fa-${game.won ? 'trophy' : 'times'}"></i>
-                        <span>${game.won ? 'ПОБЕДА' : 'ПРОИГРЫШ'}</span>
+                const gameItem = document.createElement('div');
+                gameItem.className = `game-item ${game.isWon ? 'won' : 'lost'}`;
+                
+                const date = new Date(game.timestamp * 1000);
+                const timeString = date.toLocaleTimeString('ru-RU', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                gameItem.innerHTML = `
+                    <div class="game-item-header">
+                        <span class="game-id">Игра #${gameId}</span>
+                        <span class="game-time">${timeString}</span>
                     </div>
-                    <div class="history-amount">${parseFloat(ethAmount).toFixed(4)} ETH</div>
+                    <div class="game-details">
+                        <p>Ставка: ${this.web3.utils.fromWei(game.betAmount, 'ether')} ETH</p>
+                        <p>Ваше число: ${game.playerGuess}</p>
+                        <p>Загаданное: ${game.secretNumber}</p>
+                        <p>Результат: <strong>${game.isWon ? 'Победа 🎉' : 'Поражение 😢'}</strong></p>
+                    </div>
                 `;
                 
-                gameHistory.appendChild(historyItem);
-            } catch (error) {
-                console.warn(`Ошибка загрузки игры ${gameId}:`, error);
+                historyContainer.appendChild(gameItem);
             }
+        } catch (error) {
+            console.error('Error loading game history:', error);
         }
-        
-    } catch (error) {
-        console.error('Ошибка загрузки истории:', error);
-        gameHistory.innerHTML = `
-            <div class="empty-history">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Ошибка загрузки истории</p>
-            </div>
-        `;
     }
-}
 
-// Играть
-playBtn.onclick = async () => {
-    try {
-        if (!contract) {
-            showNotification('Подключите MetaMask!', 'error');
-            return;
-        }
-        
-        const betAmount = parseFloat(betAmountInput.value);
-        const guessedNumber = parseInt(selectedNumberInput.value);
-        
-        // Валидация
-        if (isNaN(betAmount) || betAmount <= 0) {
-            showNotification('Введите корректную сумму ставки', 'error');
-            return;
-        }
-        
-        const minBetValue = await contract.minBet();
-        const minBetEth = parseFloat(ethers.formatEther(minBetValue));
-        
-        if (betAmount < minBetEth) {
-            showNotification(`Минимальная ставка: ${minBetEth} ETH`, 'error');
-            return;
-        }
-        
-        if (guessedNumber < 1 || guessedNumber > 10) {
-            showNotification('Выберите число от 1 до 10', 'error');
-            return;
-        }
-        
-        // Проверяем баланс кошелька
-        const walletBalance = await provider.getBalance(currentAccount);
-        const requiredAmount = ethers.parseEther(betAmount.toString());
-        
-        if (walletBalance < requiredAmount) {
-            showNotification('Недостаточно средств на кошельке', 'error');
-            return;
-        }
-        
-        // Показываем индикатор загрузки
-        playBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Играем...';
-        playBtn.disabled = true;
-        
-        console.log(`🎲 Играем: ставка ${betAmount} ETH, число ${guessedNumber}`);
-        
-        // Вызываем функцию контракта
-        const tx = await contract.placeBetAndPlay(guessedNumber, {
-            value: requiredAmount
-        });
-        
-        showNotification('Транзакция отправлена...', 'info');
-        
-        // Ждем подтверждения
-        const receipt = await tx.wait();
-        console.log('Транзакция подтверждена:', receipt);
-        
-        // Ищем событие GamePlayed в логах
-        const gamePlayedEvent = receipt.logs.find(log => {
-            try {
-                const parsedLog = contract.interface.parseLog(log);
-                return parsedLog && parsedLog.name === 'GamePlayed';
-            } catch {
-                return false;
+    setupEventListeners() {
+        // Подключение кошелька
+        document.getElementById('connectWallet').addEventListener('click', async () => {
+            if (window.ethereum) {
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    await this.updateWalletInfo();
+                } catch (error) {
+                    console.log("User denied account access");
+                }
+            } else {
+                this.showMetaMaskAlert();
             }
         });
-        
-        if (gamePlayedEvent) {
-            const parsedEvent = contract.interface.parseLog(gamePlayedEvent);
-            const won = parsedEvent.args.won;
-            const prize = parsedEvent.args.prize;
+
+        // Кнопки выбора числа
+        document.querySelectorAll('.number-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                document.querySelectorAll('.number-btn').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                e.target.classList.add('selected');
+                
+                const number = parseInt(e.target.dataset.number);
+                document.getElementById('selectedNumber').textContent = number;
+                document.getElementById('selectedNumber').dataset.value = number;
+            });
+        });
+
+        // Кнопка игры
+        document.getElementById('playButton').addEventListener('click', async () => {
+            const selectedNumber = document.getElementById('selectedNumber').dataset.value;
+            if (!selectedNumber) {
+                alert('Пожалуйста, выберите число сначала!');
+                return;
+            }
             
-            // Показываем результат
-            showGameResult(won, guessedNumber, betAmount, prize);
-        } else {
-            // Если не нашли событие, просто показываем успех
-            showNotification('Игра завершена!', 'success');
-        }
-        
-        // Обновляем данные
-        await Promise.all([
-            updateWalletBalance(),
-            loadContractData(),
-            loadPlayerStats(),
-            loadGameHistory()
-        ]);
-        
-    } catch (error) {
-        console.error('❌ Ошибка игры:', error);
-        
-        if (error.message.includes('user rejected')) {
-            showNotification('Вы отменили транзакцию', 'warning');
-        } else if (error.message.includes('insufficient funds')) {
-            showNotification('Недостаточно средств в контракте для выплаты', 'error');
-        } else {
-            showNotification(`Ошибка: ${error.message.substring(0, 100)}`, 'error');
-        }
-        
-    } finally {
-        playBtn.innerHTML = '<i class="fas fa-play-circle"></i> Играть';
-        playBtn.disabled = false;
-    }
-};
-
-// Показать результат игры
-function showGameResult(won, guessedNumber, betAmount, prize) {
-    // Устанавливаем данные
-    if (won) {
-        resultTitle.textContent = '🎉 ПОБЕДА!';
-        resultIcon.innerHTML = '<i class="fas fa-trophy"></i>';
-        resultIcon.className = 'result-icon win';
-        resultMessage.textContent = 'Вы угадали число и выиграли!';
-        resultPrize.textContent = `${parseFloat(ethers.formatEther(prize)).toFixed(4)} ETH`;
-        resultPrizeContainer.style.display = 'flex';
-    } else {
-        resultTitle.textContent = '😢 ПРОИГРЫШ';
-        resultIcon.innerHTML = '<i class="fas fa-times"></i>';
-        resultIcon.className = 'result-icon lose';
-        resultMessage.textContent = 'К сожалению, вы не угадали число';
-        resultPrizeContainer.style.display = 'none';
-    }
-    
-    // Получаем загаданное число (симулируем для демо)
-    // В реальном приложении это число будет из события
-    const secretNumber = Math.floor(Math.random() * 10) + 1;
-    
-    resultPlayerNumber.textContent = guessedNumber;
-    resultSecretNumber.textContent = secretNumber;
-    resultBetAmount.textContent = `${betAmount.toFixed(4)} ETH`;
-    
-    // Показываем модальное окно
-    resultModal.style.display = 'flex';
-}
-
-// Пополнение банка (только владелец)
-depositBtn.onclick = async () => {
-    try {
-        if (!isOwner) {
-            showNotification('Только владелец может пополнять банк', 'error');
-            return;
-        }
-        
-        const amount = parseFloat(depositAmount.value);
-        if (isNaN(amount) || amount <= 0) {
-            showNotification('Введите корректную сумму', 'error');
-            return;
-        }
-        
-        depositBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Пополнение...';
-        depositBtn.disabled = true;
-        
-        const tx = await contract.depositToBank({
-            value: ethers.parseEther(amount.toString())
+            await this.playGame(parseInt(selectedNumber));
         });
-        
-        showNotification('Пополнение банка...', 'info');
-        await tx.wait();
-        
-        showNotification('Банк успешно пополнен!', 'success');
-        depositAmount.value = '';
-        
-        await loadContractData();
-        await updateWalletBalance();
-        
-    } catch (error) {
-        console.error('Ошибка пополнения банка:', error);
-        showNotification(`Ошибка: ${error.message.substring(0, 100)}`, 'error');
-    } finally {
-        depositBtn.innerHTML = '<i class="fas fa-arrow-up"></i> Пополнить';
-        depositBtn.disabled = false;
-    }
-};
 
-// Вывод из банка (только владелец)
-withdrawBtn.onclick = async () => {
-    try {
-        if (!isOwner) {
-            showNotification('Только владелец может выводить средства', 'error');
-            return;
-        }
-        
-        const amount = parseFloat(withdrawAmount.value);
-        if (isNaN(amount) || amount <= 0) {
-            showNotification('Введите корректную сумму', 'error');
-            return;
-        }
-        
-        withdrawBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Вывод...';
-        withdrawBtn.disabled = true;
-        
-        const tx = await contract.withdrawFromBank(
-            ethers.parseEther(amount.toString())
-        );
-        
-        showNotification('Вывод средств...', 'info');
-        await tx.wait();
-        
-        showNotification('Средства успешно выведены!', 'success');
-        withdrawAmount.value = '';
-        
-        await loadContractData();
-        await updateWalletBalance();
-        
-    } catch (error) {
-        console.error('Ошибка вывода средств:', error);
-        showNotification(`Ошибка: ${error.message.substring(0, 100)}`, 'error');
-    } finally {
-        withdrawBtn.innerHTML = '<i class="fas fa-arrow-down"></i> Вывести';
-        withdrawBtn.disabled = false;
-    }
-};
+        // Поле ввода ставки
+        const betInput = document.getElementById('betAmount');
+        betInput.addEventListener('input', (e) => {
+            let value = parseFloat(e.target.value);
+            if (isNaN(value)) value = 0.0001;
+            if (value < 0.0001) value = 0.0001;
+            if (value > 1) value = 1;
+            e.target.value = value.toFixed(4);
+            this.updatePotentialWin();
+        });
 
-// Обновление минимальной ставки (только владелец)
-updateMinBetBtn.onclick = async () => {
-    try {
-        if (!isOwner) {
-            showNotification('Только владелец может менять ставки', 'error');
-            return;
-        }
-        
-        const amount = parseFloat(newMinBet.value);
-        if (isNaN(amount) || amount <= 0) {
-            showNotification('Введите корректную сумму', 'error');
-            return;
-        }
-        
-        if (amount < 0.0001) {
-            showNotification('Минимальная ставка не может быть меньше 0.0001 ETH', 'error');
-            return;
-        }
-        
-        updateMinBetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Обновление...';
-        updateMinBetBtn.disabled = true;
-        
-        const tx = await contract.setMinBet(
-            ethers.parseEther(amount.toString())
-        );
-        
-        showNotification('Обновление минимальной ставки...', 'info');
-        await tx.wait();
-        
-        showNotification('Минимальная ставка обновлена!', 'success');
-        
-        await loadContractData();
-        
-    } catch (error) {
-        console.error('Ошибка обновления ставки:', error);
-        showNotification(`Ошибка: ${error.message.substring(0, 100)}`, 'error');
-    } finally {
-        updateMinBetBtn.innerHTML = '<i class="fas fa-save"></i> Обновить';
-        updateMinBetBtn.disabled = false;
-    }
-};
+        // Кнопки управления ставкой
+        document.querySelectorAll('[data-action="decrease"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById('betAmount');
+                let value = parseFloat(input.value) - 0.0001;
+                if (value < 0.0001) value = 0.0001;
+                input.value = value.toFixed(4);
+                this.updatePotentialWin();
+            });
+        });
 
-// Уведомления
-function showNotification(message, type = 'info') {
-    notification.textContent = message;
-    notification.className = `notification show ${type}`;
-    
-    setTimeout(() => {
-        notification.className = 'notification';
-    }, 5000);
-}
+        document.querySelectorAll('[data-action="increase"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById('betAmount');
+                let value = parseFloat(input.value) + 0.0001;
+                if (value > 1) value = 1;
+                input.value = value.toFixed(4);
+                this.updatePotentialWin();
+            });
+        });
 
-// Обработчики событий MetaMask
-function handleAccountsChanged(accounts) {
-    console.log('Аккаунт изменен:', accounts);
-    if (accounts.length === 0) {
-        // Пользователь отключил кошелёк
-        disconnectWallet();
-    } else {
-        // Пользователь сменил аккаунт
-        connectWallet();
+        // Кнопка закрытия эффекта
+        document.getElementById('closeEffect').addEventListener('click', () => {
+            this.hideNewYearEffect();
+        });
     }
 }
 
-function handleChainChanged(chainId) {
-    console.log('Сеть изменена:', chainId);
-    showNotification('Сеть изменена, перезагрузка...', 'warning');
-    setTimeout(() => {
-        window.location.reload();
-    }, 1000);
-}
-
-// Отключение кошелька
-function disconnectWallet() {
-    connectBtn.innerHTML = '<i class="fas fa-wallet"></i> Подключить MetaMask';
-    connectBtn.style.background = 'linear-gradient(45deg, #00d4ff, #0088ff)';
-    walletInfo.classList.remove('connected');
-    currentAccount = null;
-    contract = null;
-    isOwner = false;
-    adminPanel.style.display = 'none';
-    
-    showNotification('Кошелёк отключен', 'info');
-}
-
-// Закрытие модального окна
-document.querySelector('.close-modal').onclick = () => {
-    resultModal.style.display = 'none';
-};
-
-closeResultBtn.onclick = () => {
-    resultModal.style.display = 'none';
-};
-
-// Закрытие по клику вне окна
-window.onclick = (event) => {
-    if (event.target === resultModal) {
-        resultModal.style.display = 'none';
-    }
-};
-
-// Автообновление каждые 30 секунд
-setInterval(async () => {
-    if (contract) {
-        await loadContractData();
-        await updateWalletBalance();
-    }
-}, 30000);
-
-console.log('🎮 Игра "Угадай число" готова!');
+// Инициализация при загрузке страницы
+window.addEventListener('load', () => {
+    window.gameApp = new NewYearGame();
+});
